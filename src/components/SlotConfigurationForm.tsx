@@ -124,18 +124,19 @@ export default function SlotConfigurationForm({ config, setConfig }: Props) {
           <p className="text-xs text-slate-400">Content asset that will be inserted into this slot configuration.</p>
         </div>
 
-        {/* <div className="flex items-center justify-between rounded-2xl border p-4">
+        <div className="flex items-center justify-between rounded-2xl border p-4">
           <div className="pr-4">
             <p className="font-medium">Assigned to site</p>
-            <p className="text-sm text-slate-400">Set whether the slot configuration is assigned directly to the site.</p>
+            <p className="text-xs text-slate-400">true - the slot configuration is assigned directly to the site. </p>
+            <p className="text-xs text-slate-400">false - the slot reusable across multiple sites.</p>
           </div>
           <Switch
             checked={config.assignedToSite}
             onCheckedChange={(checked) => updateConfig("assignedToSite", checked)}
           />
-        </div> */}
+        </div>
 
-        <div className="flex items-center justify-between rounded-2xl border p-4 space-y-2 md:col-span-2">
+        <div className="flex items-center justify-between rounded-2xl border p-4 space-y-2 ">
           <div className="pr-4">
             <p className="font-medium">Enabled flag</p>
             <p className="text-xs text-slate-400">Turn this on to include the slot configuration as enabled in the XML.</p>

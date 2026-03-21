@@ -71,7 +71,7 @@ function createDefaultConfig(): ConfigForm {
     contextId: "",
     configurationId: "",
     configurationIdManuallyEdited: false,
-    assignedToSite: false,
+    assignedToSite: true,
     description: "Rank # | Schedule | Campaign_name | Created_date",
     template: "slots/content/contentassetbody.isml",
     enabledFlag: true,
