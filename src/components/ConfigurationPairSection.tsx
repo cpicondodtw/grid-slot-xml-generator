@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Trash2 } from "lucide-react";
-import type { ConfigurationPair } from "../types";
+import type { ConfigurationPair, SelectOption } from "../types";
 import CampaignAssignments from "./CampaignAssignments";
 import SlotConfigurationForm from "./SlotConfigurationForm";
 
@@ -8,6 +8,12 @@ type Props = {
   pair: ConfigurationPair;
   index: number;
   canRemove: boolean;
+  sheetTabs: SelectOption[];
+  sheetTabsLoading: boolean;
+  sheetTabsError: string | null;
+  contextOptions: SelectOption[];
+  contextOptionsLoading: boolean;
+  contextOptionsError: string | null;
   onRemove: (pairId: string) => void;
   onUpdateConfig: (pairId: string, nextConfig: ConfigurationPair["config"]) => void;
   onUpdateAssignments: (pairId: string, nextAssignments: ConfigurationPair["assignments"]) => void;
@@ -17,6 +23,12 @@ export default function ConfigurationPairSection({
   pair,
   index,
   canRemove,
+  sheetTabs,
+  sheetTabsLoading,
+  sheetTabsError,
+  contextOptions,
+  contextOptionsLoading,
+  contextOptionsError,
   onRemove,
   onUpdateConfig,
   onUpdateAssignments,
@@ -40,6 +52,12 @@ export default function ConfigurationPairSection({
 
       <SlotConfigurationForm
         config={pair.config}
+        sheetTabs={sheetTabs}
+        sheetTabsLoading={sheetTabsLoading}
+        sheetTabsError={sheetTabsError}
+        contextOptions={contextOptions}
+        contextOptionsLoading={contextOptionsLoading}
+        contextOptionsError={contextOptionsError}
         setConfig={(updater) => {
           const nextConfig = typeof updater === "function" ? updater(pair.config) : updater;
           onUpdateConfig(pair.id, nextConfig);

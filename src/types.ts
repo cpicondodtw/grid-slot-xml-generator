@@ -11,6 +11,7 @@ export type Assignment = {
 export type ConfigForm = {
   slotId: string;
   context: string;
+  sheetTab: string;
   contextId: string;
   configurationId: string;
   configurationIdManuallyEdited: boolean;
@@ -31,4 +32,9 @@ export type ConfigurationPair = {
   id: string;
   config: ConfigForm;
   assignments: Assignment[];
-};  
+};
+
+export type SelectOption = {
+  label: string;
+  value: string;
+};
