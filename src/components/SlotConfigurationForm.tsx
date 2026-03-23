@@ -4,15 +4,35 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
-import type { ConfigForm } from "../types";
+import type { ConfigForm, SelectOption } from "../types";
 import { getInputClass } from "../utils/validation";
+
+const MANUAL_SHEET_TAB_VALUE = "__manual__";
 
 type Props = {
   config: ConfigForm;
+  sheetTabs: SelectOption[];
+  sheetTabsLoading: boolean;
+  sheetTabsError: string | null;
+  contextOptions: SelectOption[];
+  contextOptionsLoading: boolean;
+  contextOptionsError: string | null;
   setConfig: Dispatch<SetStateAction<ConfigForm>>;
 };
 
-export default function SlotConfigurationForm({ config, setConfig }: Props) {
+export default function SlotConfigurationForm({
+  config,
+  sheetTabs,
+  sheetTabsLoading,
+  sheetTabsError,
+  contextOptions,
+  contextOptionsLoading,
+  contextOptionsError,
+  setConfig,
+}: Props) {
+  const contextOptionsListId = `slot-context-id-options-${config.sheetTab || "empty"}`;
+  const isManualEntryMode = config.sheetTab === MANUAL_SHEET_TAB_VALUE;
+
   const updateConfig = <K extends keyof ConfigForm>(key: K, value: ConfigForm[K]) => {
     setConfig((prev) => ({ ...prev, [key]: value }));
   };
@@ -26,7 +46,31 @@ export default function SlotConfigurationForm({ config, setConfig }: Props) {
         </p>
       </CardHeader>
 
+      
+
       <CardContent className="grid gap-4 md:grid-cols-2">
+        <div className="space-y-2 md:col-span-2">
+          <Label htmlFor="slot-sheet-tab">Brand site</Label>
+          <select
+            id="slot-sheet-tab"
+            value={config.sheetTab}
+            onChange={(e) => updateConfig("sheetTab", e.target.value)}
+            className={`h-8 w-full min-w-0 rounded-lg border bg-transparent px-2.5 py-1 text-base transition-colors outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 md:text-sm ${getInputClass(config.sheetTab)}`}
+            disabled={sheetTabsLoading || !!sheetTabsError}
+          >
+            <option value={MANUAL_SHEET_TAB_VALUE}>Manual entry</option>
+            <option value="">{sheetTabsLoading ? "Loading tabs..." : "Select a sheet tab"}</option>
+            {sheetTabs.map((option) => (
+              <option key={option.value} value={option.value}>
+                - {option.label}
+              </option>
+            ))}
+            
+          </select>
+          <p className="text-xs text-slate-400">Select a brand site or use Manual entry to type a custom Category ID.</p>
+          {sheetTabsError && <p className="text-xs text-red-500">{sheetTabsError}</p>}
+        </div>
+
         <div className="space-y-2">
           <Label htmlFor="slot-id">Slot ID</Label>
           <Input
@@ -51,17 +95,43 @@ export default function SlotConfigurationForm({ config, setConfig }: Props) {
           <p className="text-xs text-slate-400">Set to the type of page context, such as category.</p>
         </div> */}
 
+        
+
         <div className="space-y-2">
-          {/* <Label htmlFor="slot-context-id">Context ID</Label> */}
           <Label htmlFor="slot-context-id">Category ID</Label>
           <Input
             id="slot-context-id"
             value={config.contextId}
-            placeholder="AXE_Fragrance"
+            list={contextOptionsListId}
+            placeholder={
+              !config.sheetTab
+                ? "Select a sheet tab first"
+                : isManualEntryMode
+                  ? "Type a custom category ID"
+                : contextOptionsLoading
+                  ? "Loading category IDs..."
+                  : "Type or select a category ID"
+            }
             onChange={(e) => updateConfig("contextId", e.target.value)}
+            autoComplete="off"
             className={getInputClass(config.contextId)}
+            disabled={(!config.sheetTab || contextOptionsLoading || !!contextOptionsError) && !isManualEntryMode}
           />
-          <p className="text-xs text-slate-400">The category or context code where this slot configuration is applied.</p>
+          {!isManualEntryMode && (
+            <datalist id={contextOptionsListId}>
+              {contextOptions.map((option) => (
+                <option key={option.value} value={option.value} label={option.label} />
+              ))}
+            </datalist>
+          )}
+          <p className="text-xs text-slate-400">
+            {isManualEntryMode
+              ? "Manual entry is enabled. Type any category ID."
+              : "Type to filter suggestions or pick a category ID from the selected Google Sheet tab."}
+          </p>
+          {contextOptionsError && config.sheetTab && !isManualEntryMode && (
+            <p className="text-xs text-red-500">{contextOptionsError}</p>
+          )}
         </div>
 
         <div className="space-y-2 md:col-span-2">

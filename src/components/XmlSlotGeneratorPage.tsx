@@ -2,7 +2,13 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Plus } from "lucide-react";
-import type { Assignment, ConfigForm, ConfigurationPair, FileNamingForm } from "../types";
+import type {
+  Assignment,
+  ConfigForm,
+  ConfigurationPair,
+  FileNamingForm,
+  SelectOption,
+} from "../types";
 import { sanitizeFileNamePart } from "../utils/fileName";
 import { buildFullXml } from "../utils/xml";
 import ConfigurationPairSection from "./ConfigurationPairSection";
@@ -11,7 +17,61 @@ import XmlPreviewCard from "./XmlPreviewCard";
 
 const MAX_PAIRS = 10;
 const FORBIDDEN_DESCRIPTION_PARTS = ["#", "Schedule", "Campaign_name", "Created_date"];
+const SHEET_API_URL = import.meta.env.VITE_SHEET_API_URL?.trim();
 
+type SheetApiItem = string | Record<string, unknown>;
+type SheetRequestAction = "tabs" | "options";
+
+function normalizeOption(item: SheetApiItem): SelectOption | null {
+  if (typeof item === "string") {
+    const value = item.trim();
+
+    return value ? { label: value, value } : null;
+  }
+
+  if (!item || typeof item !== "object") {
+    return null;
+  }
+
+  const record = item as Record<string, unknown>;
+  const rawValue =
+    record.value ??
+    record.id ??
+    record.contextId ??
+    record.categoryId ??
+    record.name ??
+    record.label;
+  const rawLabel = record.label ?? rawValue;
+
+  if (typeof rawValue !== "string" || typeof rawLabel !== "string") {
+    return null;
+  }
+
+  const value = rawValue.trim();
+  const label = rawLabel.trim();
+
+  return value && label ? { label, value } : null;
+}
+
+function normalizeOptions(payload: unknown): SelectOption[] {
+  if (!Array.isArray(payload)) {
+    return [];
+  }
+
+  const seen = new Set<string>();
+
+  return payload.reduce<SelectOption[]>((options, item) => {
+    const option = normalizeOption(item as SheetApiItem);
+
+    if (!option || seen.has(option.value)) {
+      return options;
+    }
+
+    seen.add(option.value);
+    options.push(option);
+    return options;
+  }, []);
+}
 
 function createId(prefix: string) {
   if (
@@ -68,6 +128,7 @@ function createDefaultConfig(): ConfigForm {
   return {
     slotId: "cat-grid-slot1",
     context: "category",
+    sheetTab: "",
     contextId: "",
     configurationId: "",
     configurationIdManuallyEdited: false,
@@ -115,7 +176,38 @@ export default function XmlSlotGeneratorPage() {
   const [fileNaming, setFileNaming] = useState<FileNamingForm>(defaultFileNaming);
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [sheetTabs, setSheetTabs] = useState<SelectOption[]>([]);
+  const [sheetTabsLoading, setSheetTabsLoading] = useState(false);
+  const [sheetTabsError, setSheetTabsError] = useState<string | null>(null);
+  const [contextOptionsBySheet, setContextOptionsBySheet] = useState<Record<string, SelectOption[]>>(
+    {},
+  );
+  const [loadingSheets, setLoadingSheets] = useState<string[]>([]);
+  const [sheetErrors, setSheetErrors] = useState<Record<string, string>>({});
   const copyTimeoutRef = useRef<number | null>(null);
+  const loadedSheetsRef = useRef<Set<string>>(new Set());
+
+  async function fetchSheetOptions(action: SheetRequestAction, sheetTab?: string) {
+    if (!SHEET_API_URL) {
+      throw new Error("Missing VITE_SHEET_API_URL");
+    }
+
+    const url = new URL(SHEET_API_URL);
+    url.searchParams.set("action", action);
+
+    if (action === "options" && sheetTab) {
+      url.searchParams.set("sheet", sheetTab);
+    }
+
+    const response = await fetch(url.toString());
+
+    if (!response.ok) {
+      throw new Error(`Request failed with status ${response.status}`);
+    }
+
+    const payload = (await response.json()) as unknown;
+    return normalizeOptions(payload);
+  }
 
   useEffect(() => {
     return () => {
@@ -124,6 +216,80 @@ export default function XmlSlotGeneratorPage() {
       }
     };
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    if (!SHEET_API_URL) {
+      setSheetTabsError("Missing VITE_SHEET_API_URL.");
+      return;
+    }
+
+    setSheetTabsLoading(true);
+    setSheetTabsError(null);
+
+    void fetchSheetOptions("tabs")
+      .then((options) => {
+        if (cancelled) {
+          return;
+        }
+
+        setSheetTabs(options);
+      })
+      .catch((fetchError: unknown) => {
+        if (cancelled) {
+          return;
+        }
+
+        const message =
+          fetchError instanceof Error ? fetchError.message : "Unable to load Google Sheet tabs.";
+        setSheetTabsError(message);
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setSheetTabsLoading(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    const uniqueSheetTabs = [...new Set(pairs.map((pair) => pair.config.sheetTab).filter(Boolean))];
+
+    uniqueSheetTabs.forEach((sheetTab) => {
+      if (loadedSheetsRef.current.has(sheetTab)) {
+        return;
+      }
+
+      loadedSheetsRef.current.add(sheetTab);
+      setLoadingSheets((prev) => [...prev, sheetTab]);
+      setSheetErrors((prev) => {
+        const next = { ...prev };
+        delete next[sheetTab];
+        return next;
+      });
+
+      void fetchSheetOptions("options", sheetTab)
+        .then((options) => {
+          setContextOptionsBySheet((prev) => ({ ...prev, [sheetTab]: options }));
+        })
+        .catch((fetchError: unknown) => {
+          const message =
+            fetchError instanceof Error
+              ? fetchError.message
+              : "Unable to load category values for the selected sheet tab.";
+
+          loadedSheetsRef.current.delete(sheetTab);
+          setSheetErrors((prev) => ({ ...prev, [sheetTab]: message }));
+        })
+        .finally(() => {
+          setLoadingSheets((prev) => prev.filter((item) => item !== sheetTab));
+        });
+    });
+  }, [pairs]);
 
   useEffect(() => {
     setPairs((prev) =>
@@ -259,10 +425,13 @@ export default function XmlSlotGeneratorPage() {
           return pair;
         }
 
+        const sheetTabChanged = nextConfig.sheetTab !== pair.config.sheetTab;
+        const contextId = sheetTabChanged ? "" : nextConfig.contextId;
+
         const generatedConfigurationId = buildConfigurationId(
           fileNaming.date,
           fileNaming.campaignName,
-          nextConfig.contextId,
+          contextId,
         );
         const configurationIdWasEdited =
           nextConfig.configurationId !== pair.config.configurationId;
@@ -277,6 +446,7 @@ export default function XmlSlotGeneratorPage() {
           ...pair,
           config: {
             ...nextConfig,
+            contextId,
             configurationId: nextConfigurationId,
             configurationIdManuallyEdited,
           },
@@ -284,7 +454,7 @@ export default function XmlSlotGeneratorPage() {
             ...assignment,
             slotId: nextConfig.slotId,
             context: nextConfig.context,
-            contextId: nextConfig.contextId,
+            contextId,
             configurationId: nextConfigurationId,
           })),
         };
@@ -426,6 +596,14 @@ export default function XmlSlotGeneratorPage() {
                         pair={pair}
                         index={index}
                         canRemove={pairs.length > 1}
+                        sheetTabs={sheetTabs}
+                        sheetTabsLoading={sheetTabsLoading}
+                        sheetTabsError={sheetTabsError}
+                        contextOptions={contextOptionsBySheet[pair.config.sheetTab] ?? []}
+                        contextOptionsLoading={loadingSheets.includes(pair.config.sheetTab)}
+                        contextOptionsError={
+                          pair.config.sheetTab ? sheetErrors[pair.config.sheetTab] ?? null : null
+                        }
                         onRemove={removePair}
                         onUpdateConfig={updatePairConfig}
                         onUpdateAssignments={updatePairAssignments}
