@@ -17,7 +17,7 @@ import XmlPreviewCard from "./XmlPreviewCard";
 
 const MAX_PAIRS = 10;
 const FORBIDDEN_DESCRIPTION_PARTS = ["#", "Schedule", "Campaign_name", "Created_date"];
-const SHEET_API_ENDPOINT = `${import.meta.env.BASE_URL}api/sheets`;
+const SHEET_API_URL = import.meta.env.VITE_SHEET_API_URL?.trim();
 
 type SheetApiItem = string | Record<string, unknown>;
 type SheetRequestAction = "tabs" | "options";
@@ -188,7 +188,11 @@ export default function XmlSlotGeneratorPage() {
   const loadedSheetsRef = useRef<Set<string>>(new Set());
 
   async function fetchSheetOptions(action: SheetRequestAction, sheetTab?: string) {
-    const url = new URL(SHEET_API_ENDPOINT, window.location.origin);
+    if (!SHEET_API_URL) {
+      throw new Error("Missing VITE_SHEET_API_URL");
+    }
+
+    const url = new URL(SHEET_API_URL);
     url.searchParams.set("action", action);
 
     if (action === "options" && sheetTab) {
@@ -198,19 +202,7 @@ export default function XmlSlotGeneratorPage() {
     const response = await fetch(url.toString());
 
     if (!response.ok) {
-      let message = `Request failed with status ${response.status}`;
-
-      try {
-        const payload = (await response.json()) as { error?: unknown };
-
-        if (typeof payload.error === "string" && payload.error.trim()) {
-          message = payload.error.trim();
-        }
-      } catch {
-        // Ignore malformed error payloads and use the default status message.
-      }
-
-      throw new Error(message);
+      throw new Error(`Request failed with status ${response.status}`);
     }
 
     const payload = (await response.json()) as unknown;
@@ -227,6 +219,11 @@ export default function XmlSlotGeneratorPage() {
 
   useEffect(() => {
     let cancelled = false;
+
+    if (!SHEET_API_URL) {
+      setSheetTabsError("Missing VITE_SHEET_API_URL.");
+      return;
+    }
 
     setSheetTabsLoading(true);
     setSheetTabsError(null);
