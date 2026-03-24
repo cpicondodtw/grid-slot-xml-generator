@@ -4,7 +4,7 @@ import path from "path";
 
 export default defineConfig({
   plugins: [react()],
-  base: "/sfcc-content-slot-generator/",
+  base: "/grid-slot-xml-generator/",
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
