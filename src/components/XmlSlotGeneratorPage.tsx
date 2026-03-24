@@ -537,7 +537,7 @@ export default function XmlSlotGeneratorPage() {
             <h1 className="text-3xl font-semibold tracking-tight">XML Content Slot Generator</h1>
             
             <p className="mt-2 text-sm text-slate-600">
-              This tool supports SHI... EMEA Grid slot generation
+              This tool supports SHI.. EMEA Grid slot generation
             </p>
             <p className="mt-2 text-xs text-slate-600">
               Create one or more Slot + Campaign configuration pairs and switch between them using tabs. 
