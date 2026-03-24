@@ -5,11 +5,11 @@
 Create a local `.env` from `.env.example` and set:
 
 ```bash
-SHEET_API_URL=https://script.google.com/macros/s/your-script-id/exec
+VITE_SHEET_API_URL=https://script.google.com/macros/s/your-script-id/exec
 BASE_PATH=/sfcc-content-slot-generator/
 ```
 
-`SHEET_API_URL` is server-only. Vite reads it on the server and proxies requests through `/api/sheets`, so the browser no longer receives the raw upstream URL.
+For static hosting such as GitHub Pages, use `VITE_SHEET_API_URL` so the app can call the Google Apps Script endpoint directly from the browser.
 
 ## Run
 
@@ -24,4 +24,4 @@ npm run build
 npm run preview
 ```
 
-`npm run preview` keeps the proxy route available. If you deploy this project as plain static files only, secrets cannot be hidden. To keep `SHEET_API_URL` private in production, serve the app behind a server or serverless function that exposes `/api/sheets`.
+This project deploys correctly to static hosting when `VITE_SHEET_API_URL` is set at build time. If you need to keep the upstream URL private, you must deploy behind a backend or serverless function instead of plain static hosting.

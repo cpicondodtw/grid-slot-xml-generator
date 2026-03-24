@@ -17,7 +17,8 @@ import XmlPreviewCard from "./XmlPreviewCard";
 
 const MAX_PAIRS = 10;
 const FORBIDDEN_DESCRIPTION_PARTS = ["#", "Schedule", "Campaign_name", "Created_date"];
-const SHEET_API_ENDPOINT = `${import.meta.env.BASE_URL}api/sheets`;
+const SHEET_API_URL =
+  import.meta.env.VITE_SHEET_API_URL?.trim() || import.meta.env.VITE_SHEET_API_ENDPOINT?.trim();
 
 type SheetApiItem = string | Record<string, unknown>;
 type SheetRequestAction = "tabs" | "options";
@@ -188,7 +189,11 @@ export default function XmlSlotGeneratorPage() {
   const loadedSheetsRef = useRef<Set<string>>(new Set());
 
   async function fetchSheetOptions(action: SheetRequestAction, sheetTab?: string) {
-    const url = new URL(SHEET_API_ENDPOINT, window.location.origin);
+    if (!SHEET_API_URL) {
+      throw new Error("Missing VITE_SHEET_API_URL");
+    }
+
+    const url = new URL(SHEET_API_URL, window.location.origin);
     url.searchParams.set("action", action);
 
     if (action === "options" && sheetTab) {
@@ -227,6 +232,11 @@ export default function XmlSlotGeneratorPage() {
 
   useEffect(() => {
     let cancelled = false;
+
+    if (!SHEET_API_URL) {
+      setSheetTabsError("Missing VITE_SHEET_API_URL.");
+      return;
+    }
 
     setSheetTabsLoading(true);
     setSheetTabsError(null);
